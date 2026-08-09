@@ -1,0 +1,10 @@
+[project]
+name = "writeupctf"
+version = "1.0.0"
+description = "Genera automaticamente writeup per challenge CTF da una sessione di terminale registrata, usando DeepSeek."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "openai>=2.53.0",
+    "python-dotenv>=1.2.2",
+]

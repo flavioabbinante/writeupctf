@@ -1,0 +1,8 @@
+.env
+__pycache__/
+sessione.txt
+writeup.md
+.writeup_bashrc
+.venv/
+*.pyc
+.claude/
