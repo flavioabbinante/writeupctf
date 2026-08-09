@@ -3,6 +3,15 @@ import re
 MARCATORE = "===WRITEUP_CMD==="
 PROMPT_SENTINELLA = "WUP$ "
 
+# marcatori delle primitive manuali (funzioni wnote/wfile/wshot nella shell)
+M_NOTA = "===WRITEUP_NOTE==="
+M_FILE_INIZIO = "===WRITEUP_FILE_BEGIN==="
+M_FILE_FINE = "===WRITEUP_FILE_END==="
+M_IMG = "===WRITEUP_IMG==="
+
+# nomi delle funzioni helper: i loro comandi non vanno trattati come passi normali
+HELPER = ("wnote", "wfile", "wshot")
+
 # --- pulizia del testo del terminale --------------------------------------
 
 _OSC = re.compile(r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)')   # sequenze OSC (titoli finestra, ecc.)
@@ -31,29 +40,62 @@ def _ripulisci_output(righe):
     return out
 
 
-def estrai_blocchi(nome_file="sessione.txt"):
-    """Legge una sessione registrata e restituisce i blocchi comando+output.
+def estrai_elementi(nome_file="sessione.txt"):
+    """Legge una sessione registrata e restituisce una lista di elementi tipizzati.
 
-    Formato prodotto da registratore.py: l'output di un comando precede il
-    marcatore che lo chiude; il marcatore porta con sé il comando eseguito
-    (preso da `history`, quindi pulito dagli errori di battitura).
+    Ogni elemento è un dict con chiave "tipo":
+      - {"tipo": "comando",  "comando": str, "output": [str]}
+      - {"tipo": "nota",     "testo": str}
+      - {"tipo": "file",     "nome": str, "contenuto": str}
+      - {"tipo": "immagine", "percorso": str}
+
+    I comandi normali vengono chiusi dal marcatore che ne porta il testo (da
+    history). Le primitive manuali (wnote/wfile/wshot) emettono marcatori
+    dedicati e non compaiono come passi a sé.
     """
     with open(nome_file, "r", encoding="utf-8", errors="replace") as f:
-        contenuto = f.read()
+        righe = pulisci(f.read()).splitlines()
 
-    righe = pulisci(contenuto).splitlines()
-
-    blocchi = []
+    elementi = []
     buffer = []
+    file_nome = None
+    file_righe = None
+
     for riga in righe:
-        if riga.startswith(MARCATORE):
+        # dentro un blocco file: accumula finché non arriva la fine
+        if file_nome is not None:
+            if riga.startswith(M_FILE_FINE):
+                elementi.append({
+                    "tipo": "file",
+                    "nome": file_nome,
+                    "contenuto": "\n".join(file_righe).strip("\n"),
+                })
+                file_nome = None
+                file_righe = None
+            else:
+                file_righe.append(riga)
+            continue
+
+        if riga.startswith(M_FILE_INIZIO):
+            file_nome = riga[len(M_FILE_INIZIO):].strip() or "file"
+            file_righe = []
+        elif riga.startswith(M_NOTA):
+            testo = riga[len(M_NOTA):].strip()
+            if testo:
+                elementi.append({"tipo": "nota", "testo": testo})
+        elif riga.startswith(M_IMG):
+            percorso = riga[len(M_IMG):].strip()
+            if percorso:
+                elementi.append({"tipo": "immagine", "percorso": percorso})
+        elif riga.startswith(MARCATORE):
             comando = riga[len(MARCATORE):].strip()
             output = _ripulisci_output(buffer)
             buffer = []
-            # salta il blocco di avvio (comando vuoto) e l'uscita dalla shell
-            if comando and comando != "exit":
-                blocchi.append({"comando": comando, "output": output})
+            prima_parola = comando.split(" ", 1)[0] if comando else ""
+            # salta avvio (vuoto), uscita shell e le funzioni helper
+            if comando and comando != "exit" and prima_parola not in HELPER:
+                elementi.append({"tipo": "comando", "comando": comando, "output": output})
         else:
             buffer.append(riga)
 
-    return blocchi
+    return elementi

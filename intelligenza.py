@@ -10,28 +10,39 @@ from sicurezza import redigi
 MODELLO_DEFAULT = "deepseek-v4-flash"
 
 
-def _costruisci_riassunto(blocchi, max_char_output=2000):
-    """Serializza i blocchi in testo, troncando gli output troppo lunghi."""
+def _tronca(testo, massimo):
+    if len(testo) > massimo:
+        return testo[:massimo] + f"\n...[{len(testo) - massimo} caratteri troncati]..."
+    return testo
+
+
+def _serializza(elementi, max_char_output=2000):
+    """Serializza gli elementi tipizzati in testo per il prompt."""
     parti = []
-    for b in blocchi:
-        output = "\n".join(b["output"])
-        if len(output) > max_char_output:
-            tagliati = len(output) - max_char_output
-            output = output[:max_char_output] + f"\n...[{tagliati} caratteri troncati]..."
-        parti.append(f"Comando: {b['comando']}\nOutput:\n{output}")
+    for e in elementi:
+        tipo = e["tipo"]
+        if tipo == "comando":
+            output = _tronca("\n".join(e["output"]), max_char_output)
+            parti.append(f"Comando: {e['comando']}\nOutput:\n{output}")
+        elif tipo == "nota":
+            parti.append(f"Nota dell'autore: {e['testo']}")
+        elif tipo == "file":
+            parti.append(f"File allegato '{e['nome']}':\n{_tronca(e['contenuto'], max_char_output)}")
+        elif tipo == "immagine":
+            parti.append(f"Screenshot allegato: {e['percorso']}")
     return "\n\n".join(parti)
 
 
-def genera_prosa(blocchi, metadati=None, modello=MODELLO_DEFAULT, stream=True,
+def genera_prosa(elementi, metadati=None, modello=MODELLO_DEFAULT, stream=True,
                  invia_flag=False, on_chunk=None, max_char_output=2000):
-    """Trasforma i blocchi comando+output in prosa da writeup, usando DeepSeek.
+    """Trasforma gli elementi (comandi, note, file, screenshot) in prosa da writeup.
 
     - redige i segreti prima dell'invio (flag comprese, se invia_flag=False);
     - tronca gli output enormi per non gonfiare il prompt;
     - usa lo streaming per far comparire il testo man mano;
     - disattiva il reasoning nascosto (altrimenti lentissimo).
     """
-    riassunto = _costruisci_riassunto(blocchi, max_char_output)
+    riassunto = _serializza(elementi, max_char_output)
     riassunto, redazioni = redigi(riassunto, redigi_flag=not invia_flag)
     if redazioni:
         print(f"[sicurezza] redatti prima dell'invio: {redazioni}", file=sys.stderr)
@@ -45,11 +56,13 @@ def genera_prosa(blocchi, metadati=None, modello=MODELLO_DEFAULT, stream=True,
     sistema = (
         "Sei un esperto di CTF. Scrivi un writeup chiaro e ben strutturato in italiano, "
         "in formato Markdown, spiegando cosa fa ogni passo e la logica della soluzione. "
-        "Non inventare passaggi o dettagli non presenti negli output forniti. "
+        "Il materiale può contenere comandi con output, note dell'autore, file di codice "
+        "(es. exploit) e riferimenti a screenshot: integrali nel racconto in modo coerente. "
+        "Non inventare passaggi o dettagli non presenti nel materiale fornito. "
         "Non includere un titolo H1 (# ...): il titolo viene aggiunto a parte, "
         "inizia direttamente dalle sezioni (## ...)."
     )
-    utente = intestazione + "Ecco i comandi e gli output della challenge:\n\n" + riassunto
+    utente = intestazione + "Ecco il materiale della challenge:\n\n" + riassunto
 
     try:
         api_key = os.environ["DEEPSEEK_API_KEY"]

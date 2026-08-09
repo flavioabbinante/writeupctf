@@ -62,6 +62,26 @@ Il writeup viene scritto in `writeup.md`.
 | `--invia-flag` | Invia le flag all'API (default: **redatte** prima dell'invio) |
 | `--max-output N` | Tronca gli output più lunghi di N caratteri |
 
+## Oltre la riga di comando
+
+Nei CTF non si usa solo la shell. Ci sono due casi:
+
+- **Strumenti che girano nel terminale** (Python REPL, `gdb`/`pwndbg`, `pwntools`,
+  `radare2`, `nc`...) → sono **già catturati** automaticamente: girano dentro la
+  bash registrata, quindi il loro I/O finisce nell'output.
+- **Strumenti GUI** (Ghidra, Burp, browser) e **script scritti in un editor** →
+  non passano dal terminale, quindi li agganci con tre comandi disponibili durante
+  la registrazione:
+
+  | Comando | Cosa fa | Esempio |
+  |---|---|---|
+  | `wnote "testo"` | annota un'osservazione | `wnote "Ghidra: check() fa XOR 0x42"` |
+  | `wfile <file>` | incorpora il contenuto di un file | `wfile solve.py` |
+  | `wshot <img>` | allega uno screenshot | `wshot ghidra_main.png` |
+
+  Per Ghidra: esporta il decompilato (`File → Export`) e fai `wfile decompiled.c`,
+  oppure fai uno screenshot e `wshot`, aggiungendo `wnote` per il ragionamento.
+
 ## Sicurezza / privacy
 
 La sessione viene inviata a un servizio esterno (DeepSeek). Prima dell'invio,

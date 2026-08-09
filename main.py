@@ -1,6 +1,6 @@
 import argparse
 
-from interprete import estrai_blocchi
+from interprete import estrai_elementi
 from intelligenza import genera_prosa, MODELLO_DEFAULT
 from scrittore import scrivi_writeup
 
@@ -24,10 +24,10 @@ def main():
                         help="Caratteri massimi per output prima del troncamento")
     args = parser.parse_args()
 
-    blocchi = estrai_blocchi(args.sessione)
-    print(f"Trovati {len(blocchi)} blocchi comando+output")
-    if not blocchi:
-        print("Nessun blocco trovato. Hai registrato la sessione con 'python registratore.py'?")
+    elementi = estrai_elementi(args.sessione)
+    print(f"Trovati {len(elementi)} elementi (comandi, note, file, screenshot)")
+    if not elementi:
+        print("Nessun elemento trovato. Hai registrato la sessione con 'python registratore.py'?")
         return
 
     metadati = {
@@ -41,7 +41,7 @@ def main():
     print("Genero il writeup con l'AI...\n")
     try:
         prosa = genera_prosa(
-            blocchi,
+            elementi,
             metadati=metadati,
             modello=args.modello,
             stream=not args.no_stream,
@@ -54,7 +54,7 @@ def main():
 
     print(f"\n\nScrivo il writeup in '{args.output}'...")
     scrivi_writeup(
-        blocchi,
+        elementi,
         prosa=prosa,
         metadati=metadati,
         nome_file=args.output,
