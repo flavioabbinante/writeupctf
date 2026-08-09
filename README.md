@@ -1,20 +1,22 @@
 # writeupctf
 
 Genera automaticamente writeup per challenge CTF partendo da una sessione di
-terminale registrata. Registri i comandi che usi per risolvere la challenge,
-e un modello DeepSeek li trasforma in un writeup in italiano.
+terminale registrata. Registri i comandi (e, se vuoi, note, script e screenshot)
+che usi per risolvere la challenge, e un modello DeepSeek li trasforma in un
+writeup in italiano.
 
 ## Come funziona
 
 Pipeline in quattro passi:
 
-1. **`registratore.py`** — apre una bash interattiva e registra comandi + output
-   in `sessione.txt`. Il comando viene letto da `history` (non dai tasti premuti),
-   quindi resta pulito anche se correggi mentre digiti.
+1. **`registratore.py`** — apre una bash interattiva e registra la sessione in
+   `sessione.txt`. Il comando viene letto da `history` (non dai tasti premuti),
+   quindi resta pulito anche se correggi mentre digiti. Mette anche a disposizione
+   le primitive `wnote` / `wfile` / `wshot` (vedi sotto).
 2. **`interprete.py`** — ripulisce l'output dal "rumore" del terminale (sequenze
-   ANSI, prompt) e lo divide in blocchi comando+output.
-3. **`intelligenza.py`** — manda i blocchi a DeepSeek e genera la prosa del writeup.
-4. **`scrittore.py`** — salva il writeup finale (prosa AI + appendice dei comandi).
+   ANSI, prompt) e lo divide in **elementi tipizzati**: comando, nota, file, immagine.
+3. **`intelligenza.py`** — manda gli elementi a DeepSeek e genera la prosa del writeup.
+4. **`scrittore.py`** — salva il writeup finale (prosa AI + appendice del materiale).
 
 ## Requisiti
 
@@ -96,3 +98,20 @@ persa).
 - La cattura è pensata per bash; comandi multi-riga (heredoc, cicli `for` su più
   righe) possono finire spezzati.
 - La redazione è basata su pattern: controlla sempre il writeup prima di pubblicarlo.
+
+## Changelog
+
+### 1.1.0
+- Supporto a tutto ciò che non è pura riga di comando: le primitive `wnote`
+  (annotazioni), `wfile` (incorpora uno script o il decompilato) e `wshot`
+  (allega uno screenshot).
+- Gli strumenti che girano nel terminale (`gdb`, `pwntools`, Python REPL,
+  `radare2`...) restano catturati automaticamente.
+- Modello dati a elementi tipizzati (comando / nota / file / immagine), integrati
+  nel prompt e resi nel writeup. Aggiornamento retrocompatibile nell'uso.
+
+### 1.0.0
+- Prima release stabile: registrazione della sessione, parsing in blocchi
+  comando+output con pulizia ANSI, generazione della prosa con DeepSeek (streaming,
+  reasoning disattivato), redazione di flag/chiavi/token prima dell'invio, CLI con
+  metadati e writeup finale in Markdown con appendice dei comandi.
